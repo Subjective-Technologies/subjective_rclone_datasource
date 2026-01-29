@@ -1,0 +1,5 @@
+# Requires Python 3.11
+# Main packages required
+git+https://github.com/PabloBorda/subjective-abstract-data-source-package.git
+git+https://github.com/PabloBorda/brainboost_data_source_logger_package.git
+git+https://github.com/PabloBorda/brainboost_configuration_package.git
