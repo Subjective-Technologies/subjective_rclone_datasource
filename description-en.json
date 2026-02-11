@@ -1,6 +1,10 @@
 {
   "domainCategory": "Cloud & DevOps",
   "subjectiveTechnologyElement": "DataSources",
+  "publisher": "BrainBoost Ltd.",
+  "publisher_website": "https://subjectivetechnologies.com",
+  "publisher_email": "plugins@subjectivetechnologies.com",
+  "disclaimer": "This VirtualGlass extension is not associated with, endorsed by, or approved by Rclone. It may use Rclone APIs for convenience and is provided free to use. BrainBoost Ltd. is not responsible for any damages, losses, or issues resulting from its use.",
   "sections": [
     {
       "type": "splitList",
