@@ -1,0 +1,67 @@
+{
+  "domainCategory": "Cloud & DevOps",
+  "subjectiveTechnologyElement": "DataSources",
+  "sections": [
+    {
+      "type": "splitList",
+      "title": "Rclone",
+      "text": "Index files from rclone remotes into a consolidated SQLite catalog while emitting progress updates through the standard datasource progress channel.",
+      "image": {
+        "src": "/subjective_rclone_datasource/icon.svg",
+        "alt": "Rclone icon"
+      },
+      "list": [
+        "Connection type: RCLONE",
+        "Config fields: rclone_config_path, sqlite_path, drives, dirs",
+        "Output: Builds a local SQLite catalog for fast search and downstream processing."
+      ]
+    },
+    {
+      "type": "example",
+      "title": "Typical workflow",
+      "intro": "Configure Rclone with the connection fields and run it as part of a BrainBoost pipeline.",
+      "cards": [
+        {
+          "title": "Connect",
+          "text": "Provide rclone_config_path, sqlite_path, drives, dirs in the connection form."
+        },
+        {
+          "title": "Fetch",
+          "text": "Run `fetch()` to ingest, transform, or stream data."
+        },
+        {
+          "title": "Consume",
+          "text": "Use the emitted items in downstream indexing, search, or automation steps."
+        }
+      ]
+    },
+    {
+      "type": "faq",
+      "title": "FAQ",
+      "items": [
+        {
+          "q": "What do I need to configure?",
+          "a": "At minimum: rclone_config_path, sqlite_path, drives, dirs. Additional fields may be optional depending on your use case."
+        },
+        {
+          "q": "What does it output?",
+          "a": "Builds a local SQLite catalog for fast search and downstream processing."
+        },
+        {
+          "q": "Where does the data go?",
+          "a": "Outputs are emitted to downstream subscribers in the BrainBoost pipeline. Some datasources also write artifacts (context files, catalogs, or exports) locally based on your configuration."
+        }
+      ]
+    },
+    {
+      "type": "finalCta",
+      "title": "Ready to use Rclone?",
+      "text": "Add it to your BrainBoost pipeline and start ingesting.",
+      "primaryCta": {
+        "label": "Get Subjective Client",
+        "href": "/subjective-client-download"
+      },
+      "subtext": "Run this datasource locally with your own credentials and storage."
+    }
+  ]
+}
