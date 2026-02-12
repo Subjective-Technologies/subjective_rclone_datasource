@@ -1,4 +1,5 @@
 {
+  "description": "Indexes files from configured rclone remotes into a consolidated SQLite catalog while emitting progress and structured file records.",
   "domainCategory": "Cloud & DevOps",
   "subjectiveTechnologyElement": "DataSources",
   "publisher": "BrainBoost Ltd.",
@@ -9,7 +10,7 @@
     {
       "type": "splitList",
       "title": "Rclone",
-      "text": "Index files from rclone remotes into a consolidated SQLite catalog while emitting progress updates through the standard datasource progress channel.",
+      "text": "Indexes files from configured rclone remotes into a consolidated SQLite catalog while emitting progress and structured file records.",
       "image": {
         "src": "/subjective_rclone_datasource/icon.svg",
         "alt": "Rclone icon"
