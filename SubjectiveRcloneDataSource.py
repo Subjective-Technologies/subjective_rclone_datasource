@@ -1,11 +1,15 @@
 import json
 import os
+import sys
+import platform
+import shutil
 import sqlite3
 import subprocess
 import time
 from configparser import ConfigParser
 from typing import Dict, Iterable, List, Optional
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from subjective_abstract_data_source_package import SubjectiveDataSource
 from brainboost_data_source_logger_package.BBLogger import BBLogger
@@ -44,6 +48,8 @@ class SubjectiveRcloneDataSource(SubjectiveDataSource):
         if isinstance(dirs_param, str):
             dirs_param = [d.strip() for d in dirs_param.split(",") if d.strip()]
         self.directories: List[str] = dirs_param or [""]
+        self.auto_install_rclone = bool(params.get("auto_install_rclone", False))
+        self.rclone_binary = self._resolve_rclone_binary(params.get("rclone_binary_path"))
 
     # ------------------------------------------------------------------ #
     # Public API
@@ -132,6 +138,18 @@ class SubjectiveRcloneDataSource(SubjectiveDataSource):
                     "type": "text",
                     "placeholder": "/folderA, /folderB",
                 },
+                {
+                    "name": "auto_install_rclone",
+                    "label": "Auto-install rclone if missing",
+                    "type": "checkbox",
+                    "default": False,
+                },
+                {
+                    "name": "rclone_binary_path",
+                    "label": "Custom rclone binary path (optional)",
+                    "type": "text",
+                    "placeholder": "C:/path/to/rclone.exe",
+                },
             ],
         }
 
@@ -142,7 +160,11 @@ class SubjectiveRcloneDataSource(SubjectiveDataSource):
         if not os.path.exists(self.rclone_config_path):
             raise FileNotFoundError(f"rclone config not found: {self.rclone_config_path}")
         if not self._rclone_installed():
-            raise EnvironmentError("rclone binary not found on PATH.")
+            if self.auto_install_rclone:
+                self._log("rclone not found; attempting automatic installation.")
+                self._try_install_rclone()
+            if not self._rclone_installed():
+                raise EnvironmentError("rclone binary not found on PATH.")
 
     def _load_remotes(self) -> Dict[str, Dict[str, str]]:
         parser = ConfigParser()
@@ -190,7 +212,7 @@ class SubjectiveRcloneDataSource(SubjectiveDataSource):
         clean_dir = dir_path.strip("/") if dir_path else ""
         target = f"{drive_name}:{clean_dir}" if clean_dir else f"{drive_name}:"
         cmd = [
-            "rclone",
+            self.rclone_binary,
             "size",
             target,
             "--json",
@@ -216,7 +238,7 @@ class SubjectiveRcloneDataSource(SubjectiveDataSource):
         self._log(f"Listing {target}")
 
         cmd = [
-            "rclone",
+            self.rclone_binary,
             "lsf",
             target,
             "--recursive",
@@ -293,20 +315,104 @@ class SubjectiveRcloneDataSource(SubjectiveDataSource):
         """
         if not path:
             return path
-        if path.startswith("file://"):
+        path = path.strip()
+        if path.lower().startswith("file://"):
             parsed = urlparse(path)
-            # For URLs like file://hostname/path, keep the host as UNC prefix.
-            if parsed.netloc:
-                local_path = f"//{parsed.netloc}{parsed.path}"
+            # Handle file://localhost/ and file://C:/ style URLs safely on Windows.
+            if parsed.netloc and parsed.netloc not in ("", "localhost"):
+                if parsed.netloc.endswith(":"):
+                    local_path = f"/{parsed.netloc}{parsed.path}"
+                else:
+                    local_path = f"//{parsed.netloc}{parsed.path}"
             else:
                 local_path = parsed.path
-            return os.path.normpath(unquote(local_path.lstrip("/\\")))
-        return path
+            return os.path.normpath(url2pathname(local_path))
+        return os.path.normpath(path)
 
     def _rclone_installed(self) -> bool:
-        from shutil import which
+        return bool(self.rclone_binary and os.path.exists(self.rclone_binary))
 
-        return which("rclone") is not None
+    def _resolve_rclone_binary(self, override: Optional[str]) -> str:
+        if override:
+            override = self._normalize_path(override)
+            if os.path.exists(override):
+                return override
+        # Check plugin-local deps/bin/{platform}/ directory
+        plugin_dir = os.path.dirname(__file__)
+        if sys.platform == "win32":
+            local_dep = os.path.join(plugin_dir, "deps", "bin", "windows", "rclone.exe")
+        elif sys.platform == "darwin":
+            local_dep = os.path.join(plugin_dir, "deps", "bin", "mac", "rclone")
+        else:
+            local_dep = os.path.join(plugin_dir, "deps", "bin", "linux", "rclone")
+        if os.path.exists(local_dep):
+            return local_dep
+        found = shutil.which("rclone")
+        if found:
+            return found
+        # Legacy fallback: bin/ directory
+        local_bin = os.path.join(plugin_dir, "bin", "rclone.exe" if os.name == "nt" else "rclone")
+        if os.path.exists(local_bin):
+            return local_bin
+        return "rclone"
+
+    def _try_install_rclone(self) -> None:
+        system = platform.system().lower()
+        installers: List[List[str]] = []
+
+        if system == "windows":
+            installers = [
+                ["winget", "install", "-e", "--id", "Rclone.Rclone"],
+                ["choco", "install", "rclone", "-y"],
+                ["scoop", "install", "rclone"],
+            ]
+        elif system == "linux":
+            if shutil.which("apt-get"):
+                installers.append(["apt-get", "update"])
+                installers.append(["apt-get", "install", "-y", "rclone"])
+            if shutil.which("dnf"):
+                installers.append(["dnf", "install", "-y", "rclone"])
+            if shutil.which("yum"):
+                installers.append(["yum", "install", "-y", "rclone"])
+            if shutil.which("pacman"):
+                installers.append(["pacman", "-Sy", "--noconfirm", "rclone"])
+            if shutil.which("zypper"):
+                installers.append(["zypper", "--non-interactive", "install", "rclone"])
+            if shutil.which("apk"):
+                installers.append(["apk", "add", "rclone"])
+        else:
+            self._log(f"Auto-install not supported on platform: {system}")
+            return
+
+        if not installers:
+            self._log("No supported package manager found for auto-install.")
+            return
+
+        use_sudo = False
+        if system == "linux":
+            try:
+                use_sudo = hasattr(os, "geteuid") and os.geteuid() != 0 and shutil.which("sudo") is not None
+            except Exception:
+                use_sudo = False
+
+        for cmd in installers:
+            if use_sudo and cmd[0] not in ("apt-get", "dnf", "yum", "pacman", "zypper", "apk"):
+                pass
+            full_cmd = cmd
+            if use_sudo:
+                full_cmd = ["sudo", "-n"] + cmd
+            self._log(f"Attempting rclone install: {' '.join(full_cmd)}")
+            try:
+                result = subprocess.run(full_cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    stderr = result.stderr.strip()
+                    if stderr:
+                        self._log(f"Install command failed: {stderr}")
+                if self._rclone_installed():
+                    self._log("rclone installed successfully.")
+                    return
+            except Exception as exc:
+                self._log(f"Install command error: {exc}")
 
     def _log(self, message: str) -> None:
         try:

@@ -1,0 +1,3 @@
+windows:https://subjectivetechnologies.com/datasources/RcloneDataSource/deps/bin/windows/rclone.exe
+mac:https://subjectivetechnologies.com/datasources/RcloneDataSource/deps/bin/mac/rclone
+linux:https://subjectivetechnologies.com/datasources/RcloneDataSource/deps/bin/linux/rclone
